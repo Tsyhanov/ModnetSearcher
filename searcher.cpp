@@ -1,7 +1,8 @@
 #include "searcher.h"
 #include <QDebug>
-#include <QtSerialBus/QModbusRtuSerialMaster>
+#include <QModbusTcpClient>
 #include <QtTest/QTest>
+#include <QNetworkProxyFactory>
 
 Searcher::Searcher(QObject *parent) : QObject(parent){
 
@@ -9,28 +10,37 @@ Searcher::Searcher(QObject *parent) : QObject(parent){
     setCurrSearchAddr(1);
     timer = new QTimer;
 
-    modbusDevice = new QModbusRtuSerialMaster(this);
+    QNetworkProxyFactory::setUseSystemConfiguration(false);//seems like a qt bug
+
+            modbusDevice = new QModbusTcpClient(this);
     if (!modbusDevice) {
         qDebug("Could not create Modbus Master");
         return;
     } else {
         modbusDevice->setConnectionParameter(QModbusDevice::NetworkPortParameter, 502);
+//        modbusDevice->setTimeout(500);
+        modbusDevice->setNumberOfRetries(3);
     }
 
 }
 
 void Searcher::doSearch()
 {
-    qDebug() << "do search";
     if (!modbusDevice){
         qDebug() << "Wrong Modbus device";
         return;
     }
-    for (int i=startAddr(); i<=endAddr();i=currSearchAddr()+1){
-        modbusDevice->setConnectionParameter(QModbusDevice::NetworkAddressParameter, currIP());
-        sendRequest3(i);
-    }
-//    const QUrl url =
+        int i = 2;
+//    for (int i=startAddr(); i<=endAddr();i++){
+        setCurrSearchAddr(i);
+        modbusDevice->setConnectionParameter(QModbusDevice::NetworkAddressParameter, createCurrIP(i));
+        if (!modbusDevice->connectDevice()){
+            qDebug() << "connect failed";
+        } else {
+            qDebug() << "connected:" + currIpTemplate() + QString::number(currSearchAddr());
+            connect(modbusDevice, &QModbusTcpClient::stateChanged,this, &Searcher::onStateChanged);
+        }
+//    }
 }
 
 
@@ -39,9 +49,10 @@ void Searcher::on_Timer()
     qDebug() << "onTimer:" << QString::number(currSearchAddr()) ;
 }
 
-void Searcher::sendRequest3(const int &addr)
+void Searcher::sendRequest3()
 {
-    qDebug() << "sendRequest3" + QString::number(addr);
+    int addr = 1;
+    qDebug() << "sendRequest3";
     const auto table = QModbusDataUnit(QModbusDataUnit::HoldingRegisters, 100, 2);
     if (auto *reply = modbusDevice->sendReadRequest(table, addr)){
         if (!reply->isFinished())
@@ -49,7 +60,7 @@ void Searcher::sendRequest3(const int &addr)
         else
             delete reply;//broadcast
     } else {
-        qDebug() << "sendRequest error";
+        qDebug() << "error:" + modbusDevice->errorString();
     }
 }
 
@@ -72,15 +83,37 @@ void Searcher::readReady3()
     }
 }
 
-
-QString Searcher::currIP(){
-    return m_currIP;
+void Searcher::onStateChanged()
+{
+    switch (modbusDevice->state())
+    {
+    case QModbusDevice::UnconnectedState:
+        qDebug() << "UnconnectedState";
+        break;
+    case QModbusDevice::ConnectingState:
+        qDebug() << "ConnectingState";
+        break;
+    case QModbusDevice::ConnectedState:
+        sendRequest3();
+        break;
+    case QModbusDevice::ClosingState:
+        qDebug() << "ClosingState";
+        break;
+    }
 }
 
-void Searcher::setCurrIP(const QString &s){
-    m_currIP = s;
+
+QString Searcher::createCurrIP(const int &i){
+    return (currIpTemplate() + QString::number(i));
 }
 
+void Searcher::setCurrIpTemplate(const QString &s){
+    m_currIpTemplate = s;
+}
+
+QString Searcher::currIpTemplate(){
+    return m_currIpTemplate;
+}
 
 int Searcher::currSearchAddr(){
     return m_currSearchAddr;
@@ -88,7 +121,6 @@ int Searcher::currSearchAddr(){
 
 void Searcher::setCurrSearchAddr(const int &addr){
     m_currSearchAddr = addr;
-    emit currSearchAddrChanged();
 }
 
 int Searcher::startAddr(){
@@ -97,7 +129,6 @@ int Searcher::startAddr(){
 
 void Searcher::setStartAddr(const int &addr){
     m_startAddr = addr;
-    emit startAddrChanged();
 }
 
 int Searcher::endAddr(){
@@ -106,5 +137,4 @@ int Searcher::endAddr(){
 
 void Searcher::setEndAddr(const int &addr){
     m_endAddr = addr;
-    emit endAddrChanged();
 }

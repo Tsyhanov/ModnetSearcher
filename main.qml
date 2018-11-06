@@ -55,7 +55,7 @@ Window {
             height: 40
             text: qsTr("Start search")
             onClicked: {
-//                searchconf.startSearch();
+                threadadmconf.startSearch(comboStart.displayText, comboEnd.displayText, textIP.displayText);
                 progressBar.from = comboStart.displayText;
                 progressBar.to = comboEnd.displayText;
             }
@@ -100,7 +100,7 @@ Window {
             y: 12
             width: 247
             height: 27
-            text: qsTr("192.168.1.*")
+            text: qsTr("127.0.0.")
             font.pixelSize: 20
         }
     }

@@ -9,17 +9,14 @@
 class Searcher: public QObject
 {
     Q_OBJECT
-    Q_PROPERTY(int m_currSearchAddr READ currSearchAddr WRITE setCurrSearchAddr NOTIFY currSearchAddrChanged);
-    Q_PROPERTY(int m_startAddr READ startAddr WRITE setStartAddr NOTIFY startAddrChanged);
-    Q_PROPERTY(int m_endAddr READ endAddr WRITE setEndAddr NOTIFY endAddrChanged);
+
+//    Q_PROPERTY(int m_currSearchAddr READ currSearchAddr WRITE setCurrSearchAddr NOTIFY currSearchAddrChanged);
 
 public:
     Searcher(QObject *parent = nullptr);
     virtual ~Searcher() {};
 
-
-    QString currIP();
-    void setCurrIP(const QString &s);
+    QString createCurrIP(const int &i);
 
     int currSearchAddr();
     void setCurrSearchAddr(const int &addr);
@@ -30,19 +27,21 @@ public:
     int endAddr();
     void setEndAddr(const int &addr);
 
+    QString currIpTemplate();
+    void setCurrIpTemplate(const QString &s);
+
 
 //    void startSearch();
-    void sendRequest3(const int &addr);
+//    void sendRequest3(const int &addr);
+    void sendRequest3();
     void readReady3();
 
 signals:
 
-    void currSearchAddrChanged();
-    void startAddrChanged();
-    void endAddrChanged();
 
 public slots:
     void doSearch();
+    void onStateChanged();
 
 private slots:
     void on_Timer();
@@ -54,6 +53,7 @@ private:
     QModbusClient *modbusDevice;
     //device IP
     QString m_currIP;
+    QString m_currIpTemplate;//192.168.1.
     //stop flag
     bool m_StopTimer = true;
     //current search address
