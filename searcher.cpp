@@ -7,21 +7,19 @@
 Searcher::Searcher(QObject *parent) : QObject(parent){
 
     qDebug("Searcher constructor");
-    setCurrSearchAddr(1);
     timer = new QTimer;
-
+    connect(timer, &QTimer::timeout, this, &Searcher::on_Timer);
     QNetworkProxyFactory::setUseSystemConfiguration(false);//seems like a qt bug
 
-            modbusDevice = new QModbusTcpClient(this);
+    modbusDevice = new QModbusTcpClient(this);
     if (!modbusDevice) {
         qDebug("Could not create Modbus Master");
         return;
     } else {
         modbusDevice->setConnectionParameter(QModbusDevice::NetworkPortParameter, 502);
-//        modbusDevice->setTimeout(500);
         modbusDevice->setNumberOfRetries(3);
+        timer->start(1000);
     }
-
 }
 
 void Searcher::doSearch()
@@ -30,23 +28,27 @@ void Searcher::doSearch()
         qDebug() << "Wrong Modbus device";
         return;
     }
-        int i = 2;
-//    for (int i=startAddr(); i<=endAddr();i++){
-        setCurrSearchAddr(i);
-        modbusDevice->setConnectionParameter(QModbusDevice::NetworkAddressParameter, createCurrIP(i));
-        if (!modbusDevice->connectDevice()){
-            qDebug() << "connect failed";
-        } else {
-            qDebug() << "connected:" + currIpTemplate() + QString::number(currSearchAddr());
-            connect(modbusDevice, &QModbusTcpClient::stateChanged,this, &Searcher::onStateChanged);
+
+    for (int i=startAddr(); i<=endAddr();i++)
+    {
+        if (m_NextSearchFlag){ //timer flag to delay thread
+            setCurrSearchAddr(i);
+            modbusDevice->setConnectionParameter(QModbusDevice::NetworkAddressParameter, createCurrIP(i));
+            if (!modbusDevice->connectDevice()){
+                qDebug() << "connect failed";
+            } else {
+                qDebug() << "connected:" + currIpTemplate() + QString::number(currSearchAddr());
+                connect(modbusDevice, &QModbusTcpClient::stateChanged,this, &Searcher::onStateChanged);
+            }
         }
-//    }
+    }
 }
 
 
 void Searcher::on_Timer()
 {
-    qDebug() << "onTimer:" << QString::number(currSearchAddr()) ;
+    qDebug() << "timer";
+    m_NextSearchFlag = !m_NextSearchFlag;
 }
 
 void Searcher::sendRequest3()

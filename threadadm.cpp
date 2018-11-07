@@ -10,20 +10,32 @@ Threadadm::Threadadm(QObject *parent) : QObject(parent)
 
 void Threadadm::startSearch(int from, int to, QString sIpTemplate)
 {
-    qDebug() << "startSearch";
-    QThread *searchthread = new QThread;
-    Searcher *s = new Searcher();
-    s->setStartAddr(from);
-    s->setEndAddr(to);
-    s->setCurrIpTemplate(sIpTemplate);
-    s->moveToThread(searchthread);
+    if (!m_startflag){
+        qDebug() << "startSearch";
+        searchthread = new QThread;
+        s = new Searcher();
+        s->setStartAddr(from);
+        s->setEndAddr(to);
+        s->setCurrIpTemplate(sIpTemplate);
+        s->moveToThread(searchthread);
 
-    connect(searchthread, SIGNAL(started()), s, SLOT(doSearch()));
+        connect(searchthread, &QThread::started, s, &Searcher::doSearch);
+        connect(searchthread, &QThread::finished, searchthread, &QThread::deleteLater);
+        connect(this, &Threadadm::signalStop, this, &Threadadm::stopSearch);
 
-    searchthread->start();
+        searchthread->start();
+        m_startflag = true;
+    } else {
+        qDebug() << "stopSearch";
+        emit signalStop(*searchthread, *s);
+        m_startflag = false;
+    }
 }
 
-void Threadadm::stopSearch()
+
+void Threadadm::stopSearch(QThread &searchthread, Searcher &s)
 {
-    qDebug() << "stopSearch";
+    searchthread.quit();
+    searchthread.wait(100);
+    s.deleteLater();
 }

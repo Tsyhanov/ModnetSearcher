@@ -31,8 +31,6 @@ public:
     void setCurrIpTemplate(const QString &s);
 
 
-//    void startSearch();
-//    void sendRequest3(const int &addr);
     void sendRequest3();
     void readReady3();
 
@@ -54,8 +52,8 @@ private:
     //device IP
     QString m_currIP;
     QString m_currIpTemplate;//192.168.1.
-    //stop flag
-    bool m_StopTimer = true;
+    //next search flag
+    bool m_NextSearchFlag = true;
     //current search address
     int m_currSearchAddr;
     //current find address
